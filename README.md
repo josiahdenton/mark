@@ -1,9 +1,9 @@
 # mark
 A re-implementation of bookmark using bubble tea!
 
-## TODO
+## Usage
 
-- [ ] add logging to a file to enable better live debugging
+
 
 ## CONTRIBUTING
 
