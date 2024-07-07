@@ -141,7 +141,6 @@ func (f *FormModel) Init() tea.Cmd {
 
 func (f *FormModel) View() string {
 	var b strings.Builder
-	b.WriteString(formTitleStyle.Render("Add Mark"))
 	b.WriteString("\n\n")
 	b.WriteString(f.name.View())
 	b.WriteString("\n\n")

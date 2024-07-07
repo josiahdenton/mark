@@ -62,7 +62,7 @@ type Model struct {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return nil
+	return tea.EnterAltScreen
 }
 
 func (m *Model) View() string {
