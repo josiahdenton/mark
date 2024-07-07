@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -11,10 +12,8 @@ import (
 )
 
 var (
-	formStyle      = lipgloss.NewStyle().PaddingTop(5)
-	formTitleStyle = lipgloss.NewStyle().Foreground(AccentColor).Bold(true)
-	formLabelStyle = lipgloss.NewStyle().Foreground(AccentColor)
-	boxFormStyle   = lipgloss.NewStyle().Padding(2).Width(100).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#3a3b5b"))
+	formTitleStyle = lipgloss.NewStyle().Foreground(PrimaryColor).Bold(true)
+	formLabelStyle = lipgloss.NewStyle().Foreground(SecondaryColor)
 )
 
 type FormIndex int
@@ -25,7 +24,7 @@ const (
 	Tags
 )
 
-// results
+// -- results --
 type CloseFormMsg struct{}
 
 func closeForm() tea.Cmd {
@@ -35,26 +34,26 @@ func closeForm() tea.Cmd {
 }
 
 type MarkModifiedMsg struct {
-	mark *Mark
+	mark Mark
 }
 
-func markModified(m *Mark) tea.Cmd {
+func markModified(m Mark) tea.Cmd {
 	return func() tea.Msg {
 		return MarkModifiedMsg{m}
 	}
 }
 
 type MarkCreatedMsg struct {
-	mark *Mark
+	mark Mark
 }
 
-func markCreated(m *Mark) tea.Cmd {
+func markCreated(m Mark) tea.Cmd {
 	return func() tea.Msg {
 		return MarkCreatedMsg{m}
 	}
 }
 
-// actions
+// -- actions --
 type EditMarkMsg struct {
 	mark *Mark
 }
@@ -68,10 +67,10 @@ func editMark(mark *Mark) tea.Cmd {
 }
 
 type AddMarkMsg struct {
-	mark *Mark
+	mark Mark
 }
 
-func addMark(mark *Mark) tea.Cmd {
+func addMark(mark Mark) tea.Cmd {
 	return func() tea.Msg {
 		return AddMarkMsg{
 			mark: mark,
@@ -149,7 +148,7 @@ func (f *FormModel) View() string {
 	b.WriteString(f.link.View())
 	b.WriteString("\n\n")
 	b.WriteString(f.tags.View())
-	return boxFormStyle.Render(b.String())
+	return b.String()
 }
 
 func (f *FormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -165,6 +164,10 @@ func (f *FormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		f.m.Name = msg.mark.Name
 		f.m.Link = msg.mark.Link
 		f.m.Tags = msg.mark.Tags
+
+		f.name.SetValue(msg.mark.Name)
+		f.link.SetValue(msg.mark.Link)
+		f.tags.SetValue(msg.mark.Tags)
 	}
 
 	// -- key messags --
@@ -172,6 +175,7 @@ func (f *FormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, f.keys.Close):
+			f.reset()
 			cmds = append(cmds, closeForm())
 		case key.Matches(msg, f.keys.NextInput):
 			f.focusNextField()
@@ -185,14 +189,16 @@ func (f *FormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// assign form values and signal parent component
 			f.m.Name = f.name.Value()
 			f.m.Link = f.link.Value()
-			f.m.Tags = f.link.Value()
+			f.m.Tags = f.tags.Value()
 
 			// send off
 			if f.m.Id != 0 { // existing mark
-				cmds = append(cmds, markModified(&f.m), closeForm())
+				log.Printf("modifying %d, now is mark = %+v", f.m.Id, f.m)
+				cmds = append(cmds, markModified(f.m), closeForm())
 			} else { // new mark
-				cmds = append(cmds, markCreated(&f.m), closeForm())
+				cmds = append(cmds, markCreated(f.m), closeForm())
 			}
+			f.reset() // clear form + mark
 		}
 
 	}
@@ -209,6 +215,13 @@ func (f *FormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	return f, tea.Batch(cmds...)
+}
+
+func (f *FormModel) reset() {
+	f.m = Mark{}
+	f.name.Reset()
+	f.link.Reset()
+	f.tags.Reset()
 }
 
 func (f *FormModel) focusNextField() {

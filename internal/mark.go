@@ -13,7 +13,7 @@ type Mark struct {
 }
 
 func (m *Mark) FilterValue() string {
-    return ""
+    return m.Name + m.Tags
 }
 
 func (n *Mark) Open() bool {

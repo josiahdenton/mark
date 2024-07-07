@@ -1,9 +1,10 @@
 package internal
 
 import (
-	// "fmt"
+	"log"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -11,30 +12,33 @@ import (
 )
 
 var (
-	centerStyle = lipgloss.NewStyle().Align(lipgloss.Center)
-	titleStyle  = lipgloss.NewStyle().MarginTop(2).Width(100).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#3a3b5b")).Foreground(PrimaryColor).Bold(true).Align(lipgloss.Center)
-	// windowStyle             = lipgloss.NewStyle().PaddingLeft(4)
+	contentStyle            = lipgloss.NewStyle().MarginLeft(2)
 	formKeyStyle            = lipgloss.NewStyle().Foreground(SecondaryGrayColor).Bold(true)
 	listTitleStyle          = lipgloss.NewStyle().Foreground(AccentColor).Bold(true)
 	helpKeyStyle            = lipgloss.NewStyle().Foreground(SecondaryGrayColor).Bold(true)
 	helpKeyDescriptionStyle = lipgloss.NewStyle().Foreground(SecondaryGrayColor)
-	boxStyle                = lipgloss.NewStyle().PaddingLeft(1).Width(100).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#3a3b5b"))
 )
 
 type Repository interface {
-	AllMarks() []Mark
+	AllMarks() ([]Mark, error)
 	EditMark(m *Mark) error
-	AddMark(m *Mark)
-	DeleteMark(id int) error
+	AddMark(m *Mark) error
+	DeleteMark(id int) (*Mark, error)
 }
 
-func New() *Model {
-	// TODO: use the db value
-	// r := ConnectToDB()
-	r := ConnectToInMemory()
+func New(dbPath string) *Model {
+	r, err := ConnectToDB(dbPath)
+	if err != nil {
+		log.Fatalf("failed to open DB %v", err)
+	}
 
 	// setup the list after connecting to DB
-	l := marksAsList(r.AllMarks())
+	marks, err := r.AllMarks()
+	if err != nil {
+		log.Fatalf("failed to fetch all marks %v", err)
+	}
+
+	l := marksAsList(marks)
 
 	return &Model{
 		repository: r,
@@ -46,33 +50,31 @@ func New() *Model {
 }
 
 type Model struct {
-	repository Repository
-	keys       KeyMapList
-	marks      list.Model
-	form       tea.Model
-	toast      tea.Model
-	showForm   bool
-	width      int
-	height     int
+	repository   Repository
+	keys         KeyMapList
+	marks        list.Model
+	form         tea.Model
+	toast        tea.Model
+	showForm     bool
+	width        int
+	height       int
+	deletedMarks []*Mark
 }
 
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(tea.EnterAltScreen)
+	return nil
 }
 
 func (m *Model) View() string {
-	// fmt.Println("m.showForm = %v", m.showForm)
 	var builder strings.Builder
-	builder.WriteString(titleStyle.Render("Mark"))
-	builder.WriteString("\n")
 	if m.showForm {
 		builder.WriteString(m.form.View())
 	} else {
-		builder.WriteString(boxStyle.Render(m.marks.View()))
+		builder.WriteString(m.marks.View())
 	}
-	// s := boxStyle.Render(builder.String())
-	// return windowStyle.Width(m.width).Height(m.height).Render(s)
-	return centerStyle.Width(m.width).Height(m.height).Render(builder.String())
+	builder.WriteString("\n")
+	builder.WriteString(m.toast.View())
+	return contentStyle.Render(builder.String())
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -80,12 +82,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds []tea.Cmd
 		cmd  tea.Cmd
 	)
+	// global listeners
+	m.toast, cmd = m.toast.Update(msg)
+	cmds = append(cmds, cmd)
 
 	// always enable quit from anywhere
 	switch msg := msg.(type) {
 	case RefreshMarksMsg:
-		marks := transformToItems(m.repository.AllMarks())
-		m.marks.SetItems(marks)
+		marks, err := m.repository.AllMarks()
+		if err != nil {
+			cmds = append(cmds, ShowToast("failed to get all marks", ToastWarn))
+			return m, tea.Batch(cmds...)
+		}
+		items := transformToItems(marks)
+		m.marks.SetItems(items)
 		return m, tea.Batch(cmds...)
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
@@ -97,51 +107,88 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// global listeners
-	m.toast, cmd = m.toast.Update(msg)
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.showForm { // don't allow key input with form
+		if m.showForm || m.marks.FilterState() == list.Filtering {
 			break
 		}
 
 		switch {
+		case key.Matches(msg, m.keys.Undo):
+			if len(m.deletedMarks) == 0 {
+				return m, tea.Batch(append(cmds, ShowToast("", ToastInfo))...)
+			}
+			lastRemoved := m.deletedMarks[len(m.deletedMarks)-1]
+			m.deletedMarks = m.deletedMarks[:len(m.deletedMarks)-1]
+			m.repository.AddMark(lastRemoved) // this keeps the same id...
+			return m, tea.Batch(append(cmds, ShowToast("re-added deleted mark!", ToastInfo), refreshMarks())...)
 		case key.Matches(msg, m.keys.Add):
 			m.showForm = true
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keys.Edit):
-			selected := m.marks.SelectedItem().(*Mark)
-			cmds = append(cmds, editMark(selected)) // add form listens for this message
-			m.showForm = true
-			return m, tea.Batch(cmds...)
+			if selected := m.marks.SelectedItem(); selected != nil {
+				mark := selected.(*Mark)
+				cmds = append(cmds, editMark(mark)) // add form listens for this message
+				m.showForm = true
+				return m, tea.Batch(cmds...)
+			}
 		case key.Matches(msg, m.keys.Delete):
-			selected := m.marks.SelectedItem().(*Mark)
-			cmds = append(cmds, deleteMark(selected.Id))
-			return m, tea.Batch(cmds...)
+			if selected := m.marks.SelectedItem(); selected != nil {
+				mark := selected.(*Mark)
+				cmds = append(cmds, deleteMark(mark.Id), ShowToast("deleted mark!", ToastInfo))
+				return m, tea.Batch(cmds...)
+			}
+		case key.Matches(msg, m.keys.Open):
+			if selected := m.marks.SelectedItem(); selected != nil {
+				mark := selected.(*Mark)
+				mark.Open()
+				cmds := append(cmds, ShowToast("Opened!", ToastInfo))
+				return m, tea.Batch(cmds...)
+			}
+		case key.Matches(msg, m.keys.Copy):
+			if selected := m.marks.SelectedItem(); selected != nil {
+				mark := selected.(*Mark)
+				err := clipboard.WriteAll(mark.Link)
+				if err != nil {
+					log.Printf("failed to copy to clipboard: %v", err)
+					return m, tea.Batch(append(cmds, ShowToast("failed to copy to clipboard", ToastWarn))...)
+				}
+				return m, tea.Batch(append(cmds, ShowToast("copied to clipboard!", ToastInfo))...)
+			}
 		}
 	}
 
 	switch msg := msg.(type) {
 	case CloseFormMsg:
+		log.Printf("m.showForm = %v", m.showForm)
 		m.showForm = false
-		// fmt.Println("CLOSING FORM")
 	case MarkCreatedMsg:
-		m.repository.AddMark(msg.mark)
+		log.Printf("mark created %+v", msg.mark)
+		err := m.repository.AddMark(&msg.mark)
+		if err != nil {
+			log.Printf("%v", err)
+			return m, tea.Batch(append(cmds, ShowToast("failed to add mark", ToastWarn))...)
+		}
 		return m, tea.Batch(append(cmds, refreshMarks())...)
 	case MarkModifiedMsg:
-		m.repository.EditMark(msg.mark)
+		log.Printf("modifying mark %+v", msg.mark)
+		err := m.repository.EditMark(&msg.mark)
+		if err != nil {
+			log.Printf("%v", err)
+			return m, tea.Batch(append(cmds, ShowToast("failed to edit mark", ToastWarn))...)
+		}
 		return m, tea.Batch(append(cmds, refreshMarks())...)
 	case DeleteMarkMsg:
-		m.repository.DeleteMark(msg.id)
+		mark, err := m.repository.DeleteMark(msg.id)
+		m.deletedMarks = append(m.deletedMarks, mark)
+		if err != nil {
+			log.Printf("%v", err)
+			return m, tea.Batch(append(cmds, ShowToast("failed to delete mark", ToastWarn))...)
+		}
 		return m, tea.Batch(append(cmds, refreshMarks())...)
 	}
 
-	// child components BUG: this never stops showing form because the check to close is never hit...
 	if m.showForm {
-		// TODO: implement a Blur/Focus for form...
-		// also, if I want an explicit type I can just
-		// explicitly type cast this to (tea.Model) as it does fulfill that interface
 		m.form, cmd = m.form.Update(msg)
 		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)

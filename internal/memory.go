@@ -2,6 +2,7 @@ package internal
 
 import (
 	"errors"
+	"log"
 	"slices"
 )
 
@@ -31,20 +32,21 @@ func (im *InMemory) AllMarks() []Mark {
 	return im.marks
 }
 
-func (im *InMemory) EditMark(m *Mark) error {
+func (im *InMemory) EditMark(m Mark) error {
 	// replace the Mark
 	for i, mark := range im.marks {
 		if mark.Id == m.Id {
-			im.marks[i] = *m
+			im.marks[i] = m
 			return nil
 		}
 	}
 	return InMemNotFoundError
 }
-func (im *InMemory) AddMark(m *Mark) {
+func (im *InMemory) AddMark(m Mark) {
     im.lastestId += 1
     m.Id = im.lastestId
-	im.marks = append(im.marks, *m)
+	im.marks = append(im.marks, m)
+    log.Printf("im.marks = %+v", im.marks)
 }
 func (im *InMemory) DeleteMark(id int) error {
 	for i, mark := range im.marks {

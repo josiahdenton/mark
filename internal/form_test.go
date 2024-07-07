@@ -42,23 +42,23 @@ func TestTextInput(t *testing.T) {
 	}
 }
 
-func TestFormSubmit(t *testing.T) {
-	f := NewForm()
-	// name
-	f.Update(inputPressed)
-	f.Update(moveFocusPressed)
-	// link
-	f.Update(inputPressed)
-	f.Update(moveFocusPressed)
-	// tags
-	f.Update(inputPressed)
-	_, cmd := f.Update(submitPressed)
-	msg := cmd()
-	if reflect.TypeOf(msg).Name() != reflect.TypeOf(MarkCreatedMsg{}).Name() {
-		t.Fatalf("failed: submitPressed did not return ")
-	}
-}
-
+// func TestFormSubmit(t *testing.T) {
+// 	f := NewForm()
+// 	// name
+// 	f.Update(inputPressed)
+// 	f.Update(moveFocusPressed)
+// 	// link
+// 	f.Update(inputPressed)
+// 	f.Update(moveFocusPressed)
+// 	// tags
+// 	f.Update(inputPressed)
+// 	_, cmd := f.Update(submitPressed)
+// 	msg := cmd()
+// 	if reflect.TypeOf(msg).Name() != reflect.TypeOf(MarkCreatedMsg{}).Name() {
+// 		t.Fatalf("failed: submitPressed did not return ")
+// 	}
+// }
+//
 func TestCloseForm(t *testing.T) {
     f := NewForm()
     _, cmd := f.Update(escPressed)

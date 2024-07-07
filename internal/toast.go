@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	warnStatusStyle = lipgloss.NewStyle().Foreground(PrimaryGrayColor).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#D120AF")).Width(25).Align(lipgloss.Center)
-	infoStatusStyle = lipgloss.NewStyle().Foreground(PrimaryGrayColor).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#2dd4bf")).Width(25).Align(lipgloss.Center)
+	infoStatusStyle = lipgloss.NewStyle().Foreground(PrimaryColor)
+	warnStatusStyle = lipgloss.NewStyle().Foreground(TertiaryColor)
 )
 
 type ShowToastMsg struct {
@@ -44,9 +44,9 @@ func (m ToastModel) Init() tea.Cmd {
 
 func (m ToastModel) View() string {
 	if len(m.message) > 0 && m.toast == ToastInfo {
-		return infoStatusStyle.Render(m.message)
+		return infoStatusStyle.Render("| " + m.message + " |")
 	} else if len(m.message) > 0 && m.toast == ToastWarn {
-		return warnStatusStyle.Render(m.message)
+		return warnStatusStyle.Render("| " + m.message + " |")
 	}
 	return ""
 }
