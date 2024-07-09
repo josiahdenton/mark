@@ -9,37 +9,37 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type resourceDelegate struct{}
+type delegate struct{}
 
-func (d resourceDelegate) Height() int  { return 1 }
-func (d resourceDelegate) Spacing() int { return 0 }
-func (d resourceDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd {
+func (d delegate) Height() int  { return 1 }
+func (d delegate) Spacing() int { return 0 }
+func (d delegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd {
 	return nil
 }
-func (d resourceDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
-	resource, ok := item.(*Mark)
+func (d delegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	mark, ok := item.(*Mark)
 	if !ok {
 		return
 	}
-	fmt.Fprintf(w, renderMark(resource, index == m.Index()))
+	fmt.Fprintf(w, renderMark(mark, index == m.Index()))
 }
 
 var (
-	activeResourceStyle  = lipgloss.NewStyle().Foreground(SecondaryColor).Width(40).PaddingRight(2)
-	defaultResourceStyle = lipgloss.NewStyle().Foreground(SecondaryGrayColor).Width(40).PaddingRight(2)
+	activeStyle  = lipgloss.NewStyle().Foreground(SecondaryColor).Width(30).PaddingRight(2)
+	defaultStyle = lipgloss.NewStyle().Foreground(SecondaryGrayColor).Width(30).PaddingRight(2)
 	cursorStyle          = lipgloss.NewStyle().Foreground(PrimaryColor)
-	tagsStyle            = lipgloss.NewStyle().Foreground(SecondaryGrayColor).Width(40).Align(lipgloss.Right)
+	tagsStyle            = lipgloss.NewStyle().Foreground(SecondaryGrayColor).Width(30).Align(lipgloss.Right)
 	selectedMetaStyle    = tagsStyle.Copy().Foreground(SecondaryColor)
 	alignStyle           = lipgloss.NewStyle().PaddingLeft(1)
 )
 
 func renderMark(mark *Mark, selected bool) string {
 	cursor := " "
-	style := defaultResourceStyle
+	style := defaultStyle
 	tagsStyle := tagsStyle
 	if selected {
 		cursor = ">"
-		style = activeResourceStyle
+		style = activeStyle
 		tagsStyle = selectedMetaStyle
 	}
 	name := style.Render(mark.Name)

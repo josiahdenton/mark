@@ -38,7 +38,7 @@ func New(dbPath string) *Model {
 		log.Fatalf("failed to fetch all marks %v", err)
 	}
 
-	l := marksAsList(marks)
+	l := asList(marks)
 
 	return &Model{
 		repository: r,
@@ -116,7 +116,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.Undo):
 			if len(m.deletedMarks) == 0 {
-				return m, tea.Batch(append(cmds, ShowToast("", ToastInfo))...)
+				return m, tea.Batch(append(cmds, ShowToast("no deleted marks left to undo", ToastInfo))...)
 			}
 			lastRemoved := m.deletedMarks[len(m.deletedMarks)-1]
 			m.deletedMarks = m.deletedMarks[:len(m.deletedMarks)-1]
@@ -202,14 +202,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func marksAsList(marks []Mark) list.Model {
+func asList(marks []Mark) list.Model {
 	items := transformToItems(marks)
-	l := list.New(items, resourceDelegate{}, 30, 15)
+	l := list.New(items, delegate{}, 30, 15)
 	l.Styles.Title = listTitleStyle
 	l.Title = ""
 	l.SetShowStatusBar(false)
 	l.DisableQuitKeybindings()
 	l.SetShowHelp(false)
+    l.SetShowPagination(false)
 	return l
 }
 
