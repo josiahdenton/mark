@@ -15,6 +15,7 @@ any of the marks. If you accidentally delete something, hit (u)ndo to add the ma
 ## TODO
 
 - [ ] fix all unit tests
+- [ ] max size on titles set (to avoid NLs!)
 - [ ] add help menu
 
 ## CONTRIBUTING
