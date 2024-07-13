@@ -1,5 +1,5 @@
 # mark
-A re-implementation of bookmark using bubble tea!
+A re-implementation of [bookmark](https://github.com/josiahdenton/bookmark) using bubble tea!
 
 ## Requirements
 
