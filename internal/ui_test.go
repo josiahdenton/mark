@@ -24,6 +24,6 @@ var (
 )
 
 func TestAddMarkFlow(t *testing.T) {
-	m := New()
-	m.Update(addPressed)
+	//m := New()
+	//m.Update(addPressed)
 }

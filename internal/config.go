@@ -17,8 +17,8 @@ type KeyMapList struct {
 
 func DefaultKeyMapList() KeyMapList {
 	return KeyMapList{
-		Up:     key.NewBinding(key.WithKeys("k", "up"), key.WithHelp("k", "move up")),
-		Down:   key.NewBinding(key.WithKeys("j", "down"), key.WithHelp("j", "move down")),
+		Up:     key.NewBinding(key.WithKeys("k", "up", "ctrl+p"), key.WithHelp("k/↑/ctrl+p", "move up")),
+		Down:   key.NewBinding(key.WithKeys("j", "down", "ctrl+n"), key.WithHelp("j/↓/ctrl+n", "move down")),
 		Add:    key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add mark")),
 		Open:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open mark")),
 		Copy:   key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "copy mark")),
@@ -26,7 +26,19 @@ func DefaultKeyMapList() KeyMapList {
 		Delete: key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete mark")),
 		Undo:   key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "undo delete")),
 		Help:   key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "toggle help")),
-		Quit:   key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+q", "quit")),
+		Quit:   key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
+	}
+}
+
+func (k KeyMapList) ShortHelp() []key.Binding {
+	return []key.Binding{k.Help, k.Quit}
+}
+
+func (k KeyMapList) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down, k.Open, k.Copy},
+		{k.Add, k.Edit, k.Delete, k.Undo},
+		{k.Help, k.Quit},
 	}
 }
 

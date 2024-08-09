@@ -24,13 +24,12 @@ func TestAdd(t *testing.T) {
 		Tags: "Test",
 	})
 
-	marks := db.AllMarks()
+	marks, err := db.AllMarks()
 
 	if len(marks) < 1 {
 		t.Fatalf("failed to add/fetch marks")
 	}
 }
-
 
 func TestEdit(t *testing.T) {
 	db, err := ConnectToDB(":memory:")

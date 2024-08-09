@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -38,11 +39,13 @@ func New(dbPath string) *Model {
 		log.Fatalf("failed to fetch all marks %v", err)
 	}
 
-	l := asList(marks)
+	keys := DefaultKeyMapList()
+	l := asList(marks, keys)
 
 	return &Model{
+		help:       help.New(),
 		repository: r,
-		keys:       DefaultKeyMapList(),
+		keys:       keys,
 		marks:      l,
 		form:       NewForm(),
 		toast:      NewToast(),
@@ -50,6 +53,7 @@ func New(dbPath string) *Model {
 }
 
 type Model struct {
+	help         help.Model
 	repository   Repository
 	keys         KeyMapList
 	marks        list.Model
@@ -67,10 +71,17 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) View() string {
 	var builder strings.Builder
-	if m.showForm {
-		builder.WriteString(m.form.View())
+	if m.help.ShowAll {
+		builder.WriteString("\n")
+		builder.WriteString(m.help.View(m.keys))
 	} else {
-		builder.WriteString(m.marks.View())
+		if m.showForm {
+			builder.WriteString(m.form.View())
+		} else {
+			builder.WriteString(m.marks.View())
+			builder.WriteString("\n")
+			builder.WriteString(m.help.View(m.keys))
+		}
 	}
 	builder.WriteString("\n")
 	builder.WriteString(m.toast.View())
@@ -114,6 +125,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch {
+		case key.Matches(msg, m.keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
+			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keys.Undo):
 			if len(m.deletedMarks) == 0 {
 				return m, tea.Batch(append(cmds, ShowToast("no deleted marks left to undo", ToastInfo))...)
@@ -202,15 +216,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func asList(marks []Mark) list.Model {
+func asList(marks []Mark, keyMap KeyMapList) list.Model {
 	items := transformToItems(marks)
 	l := list.New(items, delegate{}, 30, 15)
+    l.KeyMap.CursorUp = keyMap.Up
+    l.KeyMap.CursorDown = keyMap.Down
 	l.Styles.Title = listTitleStyle
 	l.Title = ""
 	l.SetShowStatusBar(false)
 	l.DisableQuitKeybindings()
 	l.SetShowHelp(false)
-    l.SetShowPagination(false)
+	l.SetShowPagination(false)
 	return l
 }
 
